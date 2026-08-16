@@ -1,0 +1,10 @@
+services:
+  localstack:
+    # Pinned deliberately. The `latest` tag on this repo is now licence-gated and
+    # exits with "License activation failed". 4.0 is the free community build
+    image: localstack/localstack:4.0
+    ports:
+      - "4566:4566"
+    environment:
+      - SERVICES=sqs
+      - DEBUG=0
