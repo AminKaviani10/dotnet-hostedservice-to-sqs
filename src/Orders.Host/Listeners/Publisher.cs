@@ -6,10 +6,11 @@ using Orders.Core;
 namespace Orders.Host.Listeners;
 
 /// <summary>
-/// Two one-shot commands so you have something to demo with:
+/// One-shot commands for exercising the queue from the command line:
 ///   dotnet run -- send Alice 42     put an order on the queue
-///   dotnet run -- send Dave -5      an order that fails on purpose
-///   dotnet run -- dlq               show what ended up dead-lettered
+///   dotnet run -- send Dave -5      an order the handler rejects
+///   dotnet run -- dlq               list whatever was dead-lettered
+///   dotnet run -- reset             empty both queues
 /// </summary>
 public static class Publisher
 {
@@ -45,9 +46,9 @@ public static class Publisher
     }
 
     /// <summary>
-    /// Reads the dead-letter queue without deleting anything, so you can run it
-    /// twice on camera. This is the payoff shot: the poison order is off the main
-    /// queue and sitting somewhere a human can look at it.
+    /// Lists the dead-letter queue without consuming from it, so it can be run
+    /// repeatedly. A message shown here is off the main queue for good: SQS gave up
+    /// on it and parked it somewhere a human can inspect it.
     /// </summary>
     public static async Task PeekDeadLetterAsync()
     {
@@ -63,7 +64,7 @@ public static class Publisher
             QueueUrl = dlqUrl,
             MaxNumberOfMessages = 10,
             WaitTimeSeconds = 2,
-            VisibilityTimeout = 0,   // put it straight back so this is repeatable
+            VisibilityTimeout = 0,   // put it straight back, so this is read-only
         });
 
         var messages = response.Messages ?? [];
@@ -77,7 +78,7 @@ public static class Publisher
     }
 
     /// <summary>
-    /// Empties both queues so you can do another take.
+    /// Empties both queues so the sample can be run again from a clean state.
     /// AWS throttles PurgeQueue to once per 60s per queue; LocalStack is lenient.
     /// </summary>
     public static async Task ResetAsync()

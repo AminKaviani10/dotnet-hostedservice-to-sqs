@@ -6,8 +6,8 @@ using Amazon.SQS.Model;
 namespace Orders.Host.Listeners;
 
 /// <summary>
-/// Client wiring and queue setup. Mostly boring — but read EnsureQueueAsync,
-/// because the redrive policy is the thing that makes the SQS story true.
+/// Client wiring and queue setup. The part worth reading is EnsureQueueAsync,
+/// which configures the redrive policy.
 /// </summary>
 public static class Sqs
 {
@@ -16,8 +16,9 @@ public static class Sqs
 
     /// <summary>
     /// How long a failed message stays hidden before SQS offers it again.
-    /// AWS defaults to 30s; 10s keeps the retries on camera.
-    /// In production this must exceed your handler's worst-case runtime.
+    /// AWS defaults to 30s; this sample uses 10s so redelivery is quick to observe.
+    /// In production this must exceed the handler's worst-case runtime, or the same
+    /// message gets picked up again while the first attempt is still running.
     /// </summary>
     private const int VisibilityTimeoutSeconds = 10;
 
@@ -58,19 +59,19 @@ public static class Sqs
     /// Creates the dead-letter queue, the main queue, and the redrive policy that
     /// links them, then returns the main queue URL.
     ///
-    /// The redrive policy is the whole argument for this course: after
+    /// The redrive policy is what TimerListener has no equivalent for: after
     /// <see cref="MaxReceiveCount"/> failed attempts, SQS moves the message to the
-    /// DLQ by itself. You do not write that code. There is no equivalent in
-    /// TimerListener — there, a poison message loops until someone notices.
+    /// DLQ on its own, with no retry bookkeeping in application code. In the timer
+    /// version, a poison record loops until somebody notices.
     ///
-    /// In production this lives in Terraform/CDK, not in the app. It's here so the
-    /// demo needs no AWS CLI step.
+    /// In production this belongs in Terraform/CDK rather than in the application.
+    /// It runs here so the sample needs no AWS CLI setup step.
     /// </summary>
     public static async Task<string> EnsureQueueAsync(
         IAmazonSQS sqs, IConfiguration config, CancellationToken ct)
     {
-        // Short deadline so a missing LocalStack shows up in seconds instead of
-        // hanging the demo. Scoped to setup, not to the long-polling client.
+        // Short deadline so an unreachable endpoint surfaces in seconds rather than
+        // hanging at startup. Scoped to setup, not to the long-polling client.
         using var startup = CancellationTokenSource.CreateLinkedTokenSource(ct);
         startup.CancelAfter(TimeSpan.FromSeconds(10));
 

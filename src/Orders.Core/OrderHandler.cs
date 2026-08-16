@@ -3,11 +3,11 @@ using Microsoft.Extensions.Logging;
 namespace Orders.Core;
 
 /// <summary>
-/// The core module. This is the file to point at and say:
-/// "this does not change when we move to SQS."
+/// The core module, shared by every listener and unchanged by the move to SQS.
 ///
-/// It has no idea a queue exists. It cannot tell you whether it was invoked
-/// by a timer or by a long-poll. That ignorance is the design.
+/// It has no idea a queue exists, and no way to tell whether it was invoked by a
+/// timer or by a long poll. That ignorance is the design: delivery can be replaced
+/// without touching this file.
 /// </summary>
 public class OrderHandler : IOrderHandler
 {
@@ -22,12 +22,12 @@ public class OrderHandler : IOrderHandler
             order.OrderId, order.Customer, order.Amount);
 
         // Stand-in for the real work: charge a card, write a row, call an API.
-        // Deliberately boring — the business logic is not the subject of the course.
+        // Kept trivial on purpose; the business logic is not the interesting part.
         await Task.Delay(TimeSpan.FromMilliseconds(200), ct);
 
-        // Throwing here is how the handler says "I failed."
-        // How that failure is *recovered* is the listener's problem, and the two
-        // listeners answer it very differently. That contrast is the lesson.
+        // Throwing is how the handler reports failure. How that failure is
+        // *recovered* is the listener's problem, and the two listeners answer it
+        // very differently — compare their catch blocks.
         if (order.Amount < 0)
             throw new InvalidOperationException(
                 $"Order {order.OrderId} has a negative amount.");

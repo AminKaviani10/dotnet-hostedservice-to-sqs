@@ -3,13 +3,14 @@ using Orders.Core;
 namespace Orders.Host.Listeners;
 
 /// <summary>
-/// BEFORE: the listener you already have.
+/// The "before" listener: the conventional polling BackgroundService.
 ///
-/// It wakes up on an interval, goes looking for work, and calls the handler.
-/// Everything about it is your code — including every failure decision.
+/// It wakes on an interval, goes looking for work, and calls the handler. Every
+/// part of it is application code, including every failure decision.
 /// </summary>
 public class TimerListener : BackgroundService
 {
+    // Production intervals are usually minutes; kept short here.
     private static readonly TimeSpan Interval = TimeSpan.FromSeconds(5);
 
     private readonly PendingOrders _pending;
@@ -55,11 +56,15 @@ public class TimerListener : BackgroundService
                 }
                 catch (Exception ex)
                 {
-                    // You own this. There is no dead-letter queue behind you.
-                    // Put it back and it retries every tick, forever, and one bad
-                    // order can spin here until someone reads the logs.
-                    // Give up instead and the order is silently lost.
-                    // Both options are bad, and both are yours to write.
+                    // This is the weak point of the whole approach, and there is no
+                    // dead-letter queue behind it. Putting the order back means it
+                    // retries every tick forever, so one bad record spins here until
+                    // somebody reads the logs. Dropping it instead loses the order
+                    // silently. Both options are bad, and both have to be written by
+                    // hand — along with a retry counter, a failures table, and row
+                    // locking once more than one instance runs.
+                    //
+                    // SqsListener replaces all of that with a redrive policy.
                     _logger.LogError(ex,
                         "Order {OrderId} failed — putting it back", order.OrderId);
                     _pending.Return(order);

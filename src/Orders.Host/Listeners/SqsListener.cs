@@ -6,21 +6,21 @@ using Orders.Core;
 namespace Orders.Host.Listeners;
 
 /// <summary>
-/// AFTER: the same job, different delivery.
+/// The "after" listener: the same job, a different delivery mechanism.
 ///
-/// Read it side by side with TimerListener. Same shape, same handler call,
-/// same BackgroundService. Three things changed:
+/// Structurally it matches TimerListener — same base class, same handler call,
+/// same loop. Three things differ:
 ///
 ///   1. It waits on the queue instead of on a clock  → work starts in ms, not minutes.
 ///   2. Success means Delete                         → "processed" is now an ack.
 ///   3. Failure means do nothing                     → SQS redelivers, then dead-letters.
 ///
-/// Point three is the one worth dwelling on: the error handling got *smaller*.
+/// The third is the significant one: the error handling got *smaller*.
 /// </summary>
 public class SqsListener : BackgroundService
 {
-    // Producers in other languages will send camelCase. Being lenient here saves
-    // you a baffling "everything is null" debugging session.
+    // Producers in other languages will send camelCase. Being lenient here avoids
+    // a baffling "every property is null" debugging session.
     private static readonly JsonSerializerOptions JsonOptions =
         new() { PropertyNameCaseInsensitive = true };
 
@@ -55,9 +55,10 @@ public class SqsListener : BackgroundService
                     QueueUrl = queueUrl,
                     MaxNumberOfMessages = 10,
 
-                    // Long polling. The call parks server-side for up to 20s and
+                    // Long polling: the call parks server-side for up to 20s and
                     // returns the instant a message lands. This one property is why
-                    // there is no PeriodicTimer in this file.
+                    // there is no PeriodicTimer in this file, and why latency is
+                    // milliseconds instead of half a polling interval.
                     WaitTimeSeconds = 20,
                 }, stoppingToken);
 
@@ -115,8 +116,9 @@ public class SqsListener : BackgroundService
         {
             // Deliberately no retry loop and no re-queue. Not deleting *is* the nack:
             // the message reappears after the visibility timeout, and after
-            // maxReceiveCount attempts SQS moves it to the DLQ on its own.
-            // Compare this block to the one in TimerListener.
+            // maxReceiveCount attempts SQS moves it to the DLQ on its own. Compare
+            // the equivalent catch block in TimerListener, which has to implement
+            // all of that by hand and still ends up looping on a poison record.
             _logger.LogError(ex,
                 "Order {OrderId} failed — leaving it for redelivery", order.OrderId);
         }
