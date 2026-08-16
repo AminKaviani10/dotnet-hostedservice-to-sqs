@@ -1,0 +1,6 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/Orders.Core/Orders.Core.csproj" />
+    <Project Path="src/Orders.Host/Orders.Host.csproj" />
+  </Folder>
+</Solution>

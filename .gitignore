@@ -1,0 +1,22 @@
+# Build output
+bin/
+obj/
+[Dd]ebug/
+[Rr]elease/
+artifacts/
+
+# IDE
+.vs/
+.vscode/
+.idea/
+*.user
+*.suo
+
+# Local overrides — keep real AWS credentials and endpoints out of git
+appsettings.Local.json
+*.local.json
+.env
+
+# OS
+Thumbs.db
+.DS_Store
